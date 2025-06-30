@@ -1,59 +1,60 @@
 # db_schema.py
 from sqlalchemy import (
     create_engine, MetaData, Table,
-    Column, String, DateTime, Date, ForeignKey, insert
+    Column, String, DateTime, Date, ForeignKey
 )
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import session
+from sqlalchemy.orm import Session, sessionmaker, declarative_base
 import sqlalchemy.orm.query as query
 from datetime import datetime
-from habit import Habit, HabitInstance  # your pure-Python classes
+
+from models import Habit, HabitInstance, Base
 
 
-engine   = create_engine("sqlite:///./habit.db", echo=True)
-metadata = MetaData()
 
-habits_table = Table(
-    "habits", metadata,
-    Column("id",           String, primary_key=True),
-    Column("name",         String, nullable=False),
-    Column("description",  String),
-    Column("date_created", DateTime, default=datetime.now()),
-)
+engine   = create_engine("sqlite:///./habits.db", echo=True)
 
-instances_table = Table(
-    "habit_instances", metadata,
-    Column("id",           String, primary_key=True),
-    Column("habit_id",     String, ForeignKey("habits.id"), nullable=False),
-    Column("period_start", Date, nullable=False),
-    Column("completed_at", DateTime),
-)
+Base.metadata.create_all(engine)
 
-metadata.create_all(engine)
+SessionLocal = sessionmaker(bind=engine)
+
 
 def save_habit(engine: Engine, habit: Habit) -> None:
-    stmt = insert(habits_table).values(
-        id           = str(habit.id),
-        name         = habit.name,
-        description  = habit.description,
-        date_created = habit.date_created,
-    )
-    with engine.begin() as connection:
-        connection.execute(stmt)
+    with Session(engine) as session:
+        session.add(habit)
+        session.commit()
+        session.refresh(habit)
+        return habit.id
+        
 
 def save_instance(engine: Engine, instance: HabitInstance) -> None:
-    stmt = insert(instances_table).values(
-        id           = str(instance.id),
-        habit_id     = str(instance.habit_id),
-        period_start = instance.period_start,
-        completed_at = instance.completed_at,
-    )
-    with engine.begin() as connection:
-        connection.execute(stmt)
+    with Session(engine) as session:
+            session.add(instance)
+            session.commit()
+            session.refresh(instance)
+            return instance.id
         
 def complete_task(engine: Engine, instance_id: str) -> None:
     """
     Mark a habit instance as completed by updating the completed_at field.
     """
-    pass
+    with Session(engine) as session:
+        instance = session.get(HabitInstance, instance_id)
+        if not instance:
+            raise ValueError(f"No HabitInstance with id={instance_id!r}")
+        elif instance.is_completed():
+            raise ValueError(f"HabitInstance with id={instance_id!r} is already completed")
+        else:
+            instance.mark_completed()                   # sets completed_at = now()
+            session.commit()
+            session.refresh(instance)
+            
+            new_instance = HabitInstance(
+            habit=instance.habit,
+            period_start=instance.habit.next_period_start(instance.period_start)  # get next period start
+            )
+            save_instance(engine, new_instance) 
+        
+        
+
     

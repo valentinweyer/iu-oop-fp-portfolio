@@ -1,14 +1,36 @@
 from datetime import datetime, date, timedelta
 from uuid import uuid4
 from typing import Optional
+from sqlalchemy import (
+    Column, String, DateTime, Date, ForeignKey
+)
+from sqlalchemy.orm import relationship, declarative_base
 
-class Habit():
+Base = declarative_base()
+
+class Habit(Base):
     """
     Base class representing a habit.
     """
     
+    __tablename__ = 'habits'
+    
+    id           = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    name         = Column(String, nullable=False)
+    description  = Column(String, nullable=True)
+    date_created = Column(DateTime, default=datetime.utcnow)
+    type         = Column(String, nullable=False)   # discriminator
+    
+    __mapper_args__ = {
+        'polymorphic_identity': 'habit',
+        'polymorphic_on': type 
+    }
+    
+    instances = relationship("HabitInstance", back_populates="habit")
+    
+    
     def __init__(self, name: str, description: Optional[str]):
-        self.id = uuid4()
+        self.id = str(uuid4())
         self.name = name
         self.description = description
         self.date_created = datetime.now()  
@@ -27,6 +49,10 @@ class Habit():
         raise NotImplementedError("This method should be implemented by subclasses")
     
 class DailyHabit(Habit):
+    __mapper_args__ = {
+        'polymorphic_identity': 'daily',
+    }
+    
     def __init__(self, name: str, description: Optional[str]):
         super().__init__(name, description)
         
@@ -47,6 +73,10 @@ class DailyHabit(Habit):
    
     
 class WeeklyHabit(Habit):
+    __mapper_args__ = {
+        'polymorphic_identity': 'weekly',
+    }
+    
     def __init__(self, name: str, description: Optional[str]):
         super().__init__(name, description)
     
@@ -65,14 +95,24 @@ class WeeklyHabit(Habit):
             "date_created": self.date_created.isoformat()
         }
     
-class HabitInstance:
+class HabitInstance(Base):
     """
     Represents an instance of a habit on a specific date.
     """
     
+    __tablename__ = "habit_instances"
+
+    id           = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    habit_id     = Column(String, ForeignKey("habits.id"), nullable=False)
+    period_start = Column(Date, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    
+    habit = relationship("Habit", back_populates="instances")
+ 
+    
     def __init__(self, habit: Habit, period_start: date):
-        self.id = uuid4()
-        self.habit_id = habit.id
+        self.id = str(uuid4())
+        self.habit_id = str(habit.id)
         self.period_start = period_start
         self.completed_at: Optional[datetime] = None
         
