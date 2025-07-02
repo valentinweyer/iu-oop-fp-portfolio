@@ -15,11 +15,11 @@ class Habit(Base):
     
     __tablename__ = 'habits'
     
-    id           = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    name         = Column(String, nullable=False)
-    description  = Column(String, nullable=True)
-    date_created = Column(DateTime, default=datetime.utcnow)
-    type         = Column(String, nullable=False)   # discriminator
+    id              = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    name            = Column(String, nullable=False)
+    description     = Column(String, nullable=True)
+    date_created    = Column(DateTime, default=datetime.utcnow)
+    type            = Column(String, nullable=False)   # discriminator
     
     __mapper_args__ = {
         'polymorphic_identity': 'habit',
@@ -105,6 +105,7 @@ class HabitInstance(Base):
     id           = Column(String, primary_key=True, default=lambda: str(uuid4()))
     habit_id     = Column(String, ForeignKey("habits.id"), nullable=False)
     period_start = Column(Date, nullable=False)
+    due_date     = Column(Date, nullable=True)  # Optional due date for the habit
     completed_at = Column(DateTime, nullable=True)
     
     habit = relationship("Habit", back_populates="instances")
@@ -114,6 +115,7 @@ class HabitInstance(Base):
         self.id = str(uuid4())
         self.habit_id = str(habit.id)
         self.period_start = period_start
+        self.due_date = period_start + timedelta(days=1) if habit.type == 'daily' else period_start + timedelta(days=6 - period_start.weekday()) if habit.type == 'weekly' else None
         self.completed_at: Optional[datetime] = None
         
     def is_completed(self) -> bool:

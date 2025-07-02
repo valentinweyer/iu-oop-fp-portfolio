@@ -78,15 +78,16 @@ def list_all_active_habits():
             if inst.completed_at else "Not completed"
         )
         rows.append({
-            "id":         str(inst.id),
-            "name":       inst.habit.name,
-            "type":       inst.habit.type,
-            "due":        inst.period_start.strftime("%Y-%m-%d"),
-            "completed":  done
+            "id":           str(inst.id),
+            "name":         inst.habit.name,
+            "type":         inst.habit.type,
+            "period_start": inst.period_start.strftime("%Y-%m-%d"),
+            "due":        inst.due_date.strftime("%Y-%m-%d") if inst.due_date else "No due date",
+            "completed":    done
         })
 
     # Compute column widths
-    cols = ["id","name","type","due","completed"]
+    cols = ["id","name","type","period_start","due","completed"]
     widths = { c: max(len(r[c]) for r in rows + [{c:c.upper()}]) for c in cols }
 
     # Print header
@@ -101,20 +102,20 @@ def list_all_active_habits():
     
 @cli.command("complete-task")
 @click.argument("name", metavar="NAME")
-def complete_task(name: str = None):
+def complete_task(name: str = None, date : Optional[date] = None):
     """Mark a habit instance as completed."""
     if not name:
         click.echo("Please provide a habit instance ID to complete.")
         return
     
     try:
-        database.complete_task(database.engine, name)
+        database.complete_task(name, date)
         click.echo(f"Habit instance {name} marked as completed!")
     except ValueError as e:
         click.echo(f"Error: {e}")
 
 if __name__ == "__main__":
-    #list_all_active_habits()
+    #complete_task(name="Touch grass")
     cli()
 
 '''

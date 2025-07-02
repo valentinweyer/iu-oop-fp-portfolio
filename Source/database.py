@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker, declarative_base, selectinload
 import sqlalchemy.orm.query as query
 from datetime import datetime
 from typing import Optional, Sequence
+import datetime
 
 from models import Habit, DailyHabit, WeeklyHabit, HabitInstance, Base
 
@@ -36,11 +37,25 @@ def save_instance(engine: Engine, instance: HabitInstance) -> None:
             session.refresh(instance)
             return instance.id
         
-def complete_task(engine: Engine, instance_id: str) -> None:
+def complete_task(name: str, date : Optional[datetime.date] = None) -> None:
     """
     Mark a habit instance as completed by updating the completed_at field.
     """
-    with Session(engine) as session:
+    
+    if date is None:
+        date = datetime.date.today()
+    
+    with SessionLocal() as session:     
+        
+        habit_id = select(Habit.id).where(Habit.name==name)
+        habit_id = session.execute(habit_id).scalar_one_or_none() 
+        if not habit_id:
+            raise ValueError(f"No habit named {name!r}")
+        instance_id = select(HabitInstance.id).where(HabitInstance.habit_id==habit_id).where(HabitInstance.period_start==date)
+        instance_id = session.execute(instance_id).scalar_one_or_none()
+        if not instance_id:
+            raise ValueError(f"No instance for '{name}' on {date}")
+        
         instance = session.get(HabitInstance, instance_id)
         if not instance:
             raise ValueError(f"No HabitInstance with id={instance_id!r}")
