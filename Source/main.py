@@ -18,7 +18,7 @@ save_habit(engine, habit_weekly)
 
 save_instance(engine, habit_instance)
 
-complete_task(engine, "393bc447-ce4c-4f34-b612-b2ade3132e5f")
+complete_task(engine, "df3d7a9b-6d26-4a6c-a7da-73e195f84770")
 
 
 

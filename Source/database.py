@@ -1,18 +1,20 @@
 # db_schema.py
 from sqlalchemy import (
     create_engine, MetaData, Table,
-    Column, String, DateTime, Date, ForeignKey
+    Column, String, DateTime, Date, ForeignKey, select
 )
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, sessionmaker, declarative_base
+from sqlalchemy.orm import Session, sessionmaker, declarative_base, selectinload
 import sqlalchemy.orm.query as query
 from datetime import datetime
+from typing import Optional, Sequence
 
-from models import Habit, HabitInstance, Base
+from models import Habit, DailyHabit, WeeklyHabit, HabitInstance, Base
 
 
 
-engine   = create_engine("sqlite:///./habits.db", echo=True)
+
+engine   = create_engine("sqlite:///./habits.db", echo=False)
 
 Base.metadata.create_all(engine)
 
@@ -55,6 +57,35 @@ def complete_task(engine: Engine, instance_id: str) -> None:
             )
             save_instance(engine, new_instance) 
         
-        
+def get_all_habits(period: Optional[str] = "all") -> list[Habit]:
+    """
+    :param period:
+      - "daily"  → only daily
+      - "weekly" → only weekly
+      - anything else (including None) → all
+    """
+    # Normalize to a real string
+    period_str = (period or "all").lower()
 
+    if period_str == "daily":
+        stmt = select(Habit).where(Habit.type == "daily")
+    elif period_str == "weekly":
+        stmt = select(Habit).where(Habit.type == "weekly")
+    else:
+        stmt = select(Habit)
+
+    stmt = stmt.order_by(Habit.name)
+
+    with SessionLocal() as session:
+        return session.scalars(stmt).all()
+        
+def get_all_active_habits(Name = Optional[str]) -> list[Habit]:
+    """
+    Get all active habits [optionally by name].
+    """
+    stmt = select(HabitInstance).options(selectinload(HabitInstance.habit))
+    #stmt = stmt.join(HabitInstance.Habit.name)
+    
+    with SessionLocal() as session:
+        return session.scalars(stmt).all()
     
