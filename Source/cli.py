@@ -3,14 +3,23 @@ from datetime import date, datetime
 from typing import Optional
 from sqlalchemy.orm import Session
 
+
 from models import DailyHabit, WeeklyHabit, HabitInstance, Habit
 import database
 
 
 @click.group()
 def cli():
-    """📝 Habit Tracker CLI"""
+    """
+    📝 Habit Tracker CLI"""
     pass
+
+def ensure_up_to_date(f):
+    @click.pass_context
+    def wrapper(ctx, *args, **kwargs):
+        database.backfill_instances()
+        return ctx.invoke(f, *args, **kwargs)
+    return wrapper
 
 @cli.command("add-habit")
 @click.argument("name", metavar="NAME")
@@ -39,7 +48,6 @@ def cli():
     default=None,
     help="Optional weekday for weekly habits (0=Monday, 6=Sunday). Only used for weekly habits."
 )
-
 def add_habit(name : str, start_date : date, period_type : str, description : str=None, weekday: Optional[int] = None):
     """
     Add a new habit to the database.    
@@ -70,6 +78,7 @@ def add_habit(name : str, start_date : date, period_type : str, description : st
     show_default=True,
     help="Filter habits by type (all, daily, weekly)"
 )
+@ensure_up_to_date
 def list_all_habits(habit_type: str = "all"):
     """
     Retrieve all habits from the database.
@@ -84,6 +93,7 @@ def list_all_habits(habit_type: str = "all"):
         click.echo(f"  • [{h.id}] {h.name} ({h.type}), created {h.date_created.date()}")
        
 @cli.command("list-all-active-habits")
+@ensure_up_to_date
 def list_all_active_habits():
     """
     Retrieve all habit instances and print as a table.
@@ -134,6 +144,7 @@ def list_all_active_habits():
     default=None,
     help="Optional date to complete tasks."
 )
+@ensure_up_to_date
 def complete_task(name: str = None, date : Optional[date] = None):
     """
     Mark a habit instance as completed.
@@ -149,3 +160,40 @@ def complete_task(name: str = None, date : Optional[date] = None):
         click.echo(f"Error: {e}")
 
 
+
+    
+@cli.command("show-longest-streak-for-habit")
+@click.argument("name", metavar="NAME")
+@ensure_up_to_date
+def show_longest_streak_for_habit(name: str = None):
+    """
+    Show the longest streak for a habit.
+    """
+    if not name:
+        click.echo("Please provide a habit name to show the longest streak.")
+        return
+    
+    habit = database.get_habit_by_name(name)
+    
+    try:
+        streak = database.longest_streak_for_habit(instances=database.get_all_active_habits(), habit=habit)
+        click.echo(f"Longest streak for '{name}': {streak} days")
+    except ValueError as e:
+        click.echo(f"Error: {e}")
+        
+@cli.command("show-longest-streak")
+@ensure_up_to_date
+def show_longest_streak():
+    """
+    Show the longest streak for all habits.
+    """
+
+    habits      = database.get_all_habits()
+    instances   = database.get_all_active_habits()
+
+    result = database.longest_streak_all(habits, instances)
+    click.echo(f"Overall best streak: {result['max_of_all']}")
+    for h, s in result["per_habit"].items():
+        click.echo(f"  • {h}: {s}")
+
+    

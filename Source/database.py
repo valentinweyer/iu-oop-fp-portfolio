@@ -7,6 +7,9 @@ from sqlalchemy.orm import (
 from datetime import datetime
 from typing import Optional, Sequence
 import datetime
+from operator import itemgetter
+from functools import reduce
+from datetime import date
 
 from models import Habit, DailyHabit, WeeklyHabit, HabitInstance, Base
 
@@ -117,3 +120,79 @@ def get_all_active_habits(Name = Optional[str]) -> list[Habit]:
     with SessionLocal() as session:
         return session.scalars(stmt).all()
     
+    
+def longest_streak_for_habit(instances: list[HabitInstance], habit: WeeklyHabit|DailyHabit) -> int:
+    """
+    Given a sorted list of all HabitInstance for one habit,
+    return its maximum consecutive‐period streak.
+    """
+    # 1) Filter only completed instances
+    completed = list(filter(lambda inst: inst.is_completed(), instances))
+
+    # 2) Map each to its period_start date
+    dates = list(map(itemgetter("period_start"), map(lambda i: {"period_start": i.period_start}, completed)))
+
+    # 3) Reduce over runs: compare each to the previous-next via habit.next_period_start()
+    def reducer(acc, current):
+        max_streak, last_date, cur_streak = acc
+        if last_date and current == habit.next_period_start(last_date):
+            cur_streak += 1
+        else:
+            cur_streak = 1
+        return (max(max_streak, cur_streak), current, cur_streak)
+
+    # Start with (max_streak=0, last_date=None, cur_streak=0)
+    max_streak, _, _ = reduce(reducer, dates, (0, None, 0))
+    return max_streak
+
+
+def get_habit_by_name(name: str) -> Optional[Habit]:
+    """
+    Get a habit by its name.
+    """
+    with SessionLocal() as session:
+        stmt = select(Habit).where(Habit.name == name)
+        return session.execute(stmt).scalar_one_or_none()
+    
+def backfill_instances():
+    today = date.today()
+    with SessionLocal() as session:
+        for habit in session.query(Habit).all():
+            # find the most‐recent instance (if any)
+            last = (
+                session.query(HabitInstance)
+                        .filter_by(habit_id=habit.id)
+                        .order_by(HabitInstance.period_start.desc())
+                        .first()
+            )
+            # if there’s no instance, start one today (or via habit.first_period_start)
+            if last is None:
+                inst = HabitInstance(habit, habit.first_period_start(date.today()))
+                session.add(inst)
+                session.commit()
+                last = inst
+
+            # now, while last is “behind” today, spawn the next one
+            while last.period_start < today:
+                nxt = habit.next_period_start(last.period_start)
+                inst = HabitInstance(habit, nxt)
+                session.add(inst)
+                session.commit()
+                last = inst
+                
+def longest_streak_all(habits: list[Habit], all_instances: list[HabitInstance]) -> dict[str,int]:
+    """
+    Compute the longest streak of each habit, then return the overall best.
+    Returns a dict mapping habit.name → its longest streak.
+    """
+    def streak_for(habit):
+        insts = sorted(
+            filter(lambda i: i.habit_id == habit.id, all_instances),
+            key=lambda i: i.period_start
+        )
+        return (habit.name, longest_streak_for_habit(insts, habit))
+
+    # Map each habit to its streak, then pick the max
+    streaks = dict(map(streak_for, habits))
+    overall_max = max(streaks.values(), default=0)
+    return {"per_habit": streaks, "max_of_all": overall_max}
