@@ -4,7 +4,7 @@ from sqlalchemy import (
     Column, String, DateTime, Date, ForeignKey, select
 )
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, sessionmaker, declarative_base, selectinload
+from sqlalchemy.orm import Session, sessionmaker, declarative_base, selectinload, selectin_polymorphic
 import sqlalchemy.orm.query as query
 from datetime import datetime
 from typing import Optional, Sequence
@@ -48,7 +48,7 @@ def complete_task(name: str, date : Optional[datetime.date] = None) -> None:
     with SessionLocal() as session:     
         
         habit_id = select(Habit.id).where(Habit.name==name)
-        habit_id = session.execute(habit_id).scalar_one_or_none() 
+        habit_id = session.execute(habit_id).scalar_one_or_none()
         if not habit_id:
             raise ValueError(f"No habit named {name!r}")
         instance_id = select(HabitInstance.id).where(HabitInstance.habit_id==habit_id).where(HabitInstance.period_start==date)
@@ -98,8 +98,7 @@ def get_all_active_habits(Name = Optional[str]) -> list[Habit]:
     """
     Get all active habits [optionally by name].
     """
-    stmt = select(HabitInstance).options(selectinload(HabitInstance.habit))
-    #stmt = stmt.join(HabitInstance.Habit.name)
+    stmt = select(HabitInstance).options(selectinload(HabitInstance.habit), selectin_polymorphic(Habit, [WeeklyHabit]))
     
     with SessionLocal() as session:
         return session.scalars(stmt).all()

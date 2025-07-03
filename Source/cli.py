@@ -34,14 +34,21 @@ def cli():
     default=None,
     help="Optional description of the habit"
 )
-
-def add_habit(name : str, start_date : date, period_type : str, description : str=None,):
+@click.option(
+    "--weekday", "-w",
+    default=None,
+    help="Optional weekday for weekly habits (0=Monday, 6=Sunday). Only used for weekly habits."
+)
+def add_habit(name : str, start_date : date, period_type : str, description : str=None, weekday: Optional[int] = None):
     if period_type == 'daily':
         habit = DailyHabit(name=name, description=description)
     elif period_type == 'weekly':
-        habit = WeeklyHabit(name=name, description=description)
+        habit = WeeklyHabit(name=name, description=description, weekday=weekday)
     
     database.save_habit(database.engine, habit)
+    
+    if weekday is not None and period_type == "weekly":
+        start_date = habit.first_period_start(after=start_date)
         
     habit_instance = HabitInstance(habit=habit, period_start=start_date)
     database.save_instance(database.engine, habit_instance)
@@ -81,13 +88,17 @@ def list_all_active_habits():
             "id":           str(inst.id),
             "name":         inst.habit.name,
             "type":         inst.habit.type,
+            "weekday":      # coerce to str or "N/A"
+                str(inst.habit.weekday)
+                if isinstance(inst.habit, WeeklyHabit) and inst.habit.weekday is not None
+                else "N/A",
             "period_start": inst.period_start.strftime("%Y-%m-%d"),
-            "due":        inst.due_date.strftime("%Y-%m-%d") if inst.due_date else "No due date",
+            "due":          inst.due_date.strftime("%Y-%m-%d") if inst.due_date else "No due date",
             "completed":    done
         })
 
     # Compute column widths
-    cols = ["id","name","type","period_start","due","completed"]
+    cols = ["id","name","type", "weekday", "period_start","due","completed"]
     widths = { c: max(len(r[c]) for r in rows + [{c:c.upper()}]) for c in cols }
 
     # Print header
@@ -102,6 +113,11 @@ def list_all_active_habits():
     
 @cli.command("complete-task")
 @click.argument("name", metavar="NAME")
+@click.option(
+    "--date", "-d",
+    default=None,
+    help="Optional date to complete tasks."
+)
 def complete_task(name: str = None, date : Optional[date] = None):
     """Mark a habit instance as completed."""
     if not name:
@@ -115,12 +131,4 @@ def complete_task(name: str = None, date : Optional[date] = None):
         click.echo(f"Error: {e}")
 
 if __name__ == "__main__":
-    #complete_task(name="Touch grass")
     cli()
-
-'''
-                f"  • [{h.id}] 
-                {h.habit_id}
-                completed at: {h.completed_at.strftime("%Y-%m-%d %H:%M") if h.completed_at is not None else 'Not completed'}"
-                )
-        '''

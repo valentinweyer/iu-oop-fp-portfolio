@@ -2,7 +2,7 @@ from datetime import datetime, date, timedelta
 from uuid import uuid4
 from typing import Optional
 from sqlalchemy import (
-    Column, String, DateTime, Date, ForeignKey
+    Column, String, DateTime, Date, ForeignKey, Integer
 )
 from sqlalchemy.orm import relationship, declarative_base
 
@@ -20,6 +20,8 @@ class Habit(Base):
     description     = Column(String, nullable=True)
     date_created    = Column(DateTime, default=datetime.utcnow)
     type            = Column(String, nullable=False)   # discriminator
+    weekday         = Column(Integer, nullable=True)
+
     
     __mapper_args__ = {
         'polymorphic_identity': 'habit',
@@ -77,15 +79,31 @@ class WeeklyHabit(Habit):
         'polymorphic_identity': 'weekly',
     }
     
-    def __init__(self, name: str, description: Optional[str]):
+    def __init__(self, name: str, description: Optional[str], weekday: Optional[int] = None):
         super().__init__(name, description)
+        self.weekday = weekday
+        
+        
+    def first_period_start(self, after: date) -> date:
+        """
+        Calculate the start of the next period for the habit after a given date.
+        """
+        
+        current = after.weekday()   
+        weekday = 0 if self.weekday is None else self.weekday
+        days_ahead = (weekday - current + 7) % 7 if weekday is not current else 0
+        return after + timedelta(days=days_ahead)
     
     def next_period_start(self, after: date) -> date:
         """
         Calculate the start of the next period for the habit after a given date.
         """
-        next_day = after + timedelta(days=7)
-        return datetime.combine(next_day, datetime.min.time())
+        
+        current = after.weekday() 
+        weekday = 0 if self.weekday is None else self.weekday
+        # advance to next `weekday` (e.g. 2 for Wednesday), at least 1 day ahead
+        days_ahead = (weekday - current + 7) % 7 if weekday is not current else 7
+        return after + timedelta(days=days_ahead)
 
     def get_data(self) -> dict:
         return {
@@ -115,7 +133,7 @@ class HabitInstance(Base):
         self.id = str(uuid4())
         self.habit_id = str(habit.id)
         self.period_start = period_start
-        self.due_date = period_start + timedelta(days=1) if habit.type == 'daily' else period_start + timedelta(days=6 - period_start.weekday()) if habit.type == 'weekly' else None
+        self.due_date = period_start if habit.type == 'daily' or (habit.type=="weekly" and habit.weekday is not None) else period_start + timedelta(days=6 - period_start.weekday()) if habit.type == 'weekly' else None
         self.completed_at: Optional[datetime] = None
         
     def is_completed(self) -> bool:
