@@ -47,10 +47,14 @@ class Habit(Base):
     def get_data(self) -> dict:
         """
         Get the data representation of the habit.
+        Must be implemented by subclasses.
         """
         raise NotImplementedError("This method should be implemented by subclasses")
     
 class DailyHabit(Habit):
+    """
+    Subclass representing a daily habit.
+    """
     __mapper_args__ = {
         'polymorphic_identity': 'daily',
     }
@@ -60,12 +64,16 @@ class DailyHabit(Habit):
         
     def next_period_start(self, after: date) -> date:
         """
-        Calculate the start of the next period for the habit after a given date.
+        Calculate the start of the next period for the habit after a given date. 
+        For this habit type, it is always the next day.
         """
         next_day = after + timedelta(days=1)
         return datetime.combine(next_day, datetime.min.time())
     
     def get_data(self) -> dict:
+        """
+        Get the data representation of the daily habit as a dict.
+        """
         return {
             "id": str(self.id),
             "name": self.name,
@@ -86,26 +94,27 @@ class WeeklyHabit(Habit):
         
     def first_period_start(self, after: date) -> date:
         """
-        Calculate the start of the next period for the habit after a given date.
+        Calculate the start of the first period for the habit after a given date.
         """
-        
         current = after.weekday()   
-        weekday = 0 if self.weekday is None else self.weekday
-        days_ahead = (weekday - current + 7) % 7 if weekday is not current else 0
+        weekday = 0 if self.weekday is None else self.weekday                       # preventing NoneType error
+        days_ahead = (weekday - current + 7) % 7 if weekday is not current else 0   # calculate the days to advance | zero if weekday is today
         return after + timedelta(days=days_ahead)
     
     def next_period_start(self, after: date) -> date:
         """
         Calculate the start of the next period for the habit after a given date.
         """
-        
         current = after.weekday() 
-        weekday = 0 if self.weekday is None else self.weekday
+        weekday = 0 if self.weekday is None else self.weekday                       # preventing NoneType error   
         # advance to next `weekday` (e.g. 2 for Wednesday), at least 1 day ahead
-        days_ahead = (weekday - current + 7) % 7 if weekday is not current else 7
+        days_ahead = (weekday - current + 7) % 7 if weekday is not current else 7   # calculate the days to advance | 7 if weekday is today to have habit next week
         return after + timedelta(days=days_ahead)
 
     def get_data(self) -> dict:
+        """
+        Get the data representation of the daily habit as a dict.
+        """
         return {
             "id": str(self.id),
             "name": self.name,
@@ -151,7 +160,7 @@ class HabitInstance(Base):
         
     def get_data(self) -> dict:
         """
-        Get the data representation of the habit instance.
+        Get the data representation of the habit instance as a dict.
         """
         return {
             "id": str(self.id),

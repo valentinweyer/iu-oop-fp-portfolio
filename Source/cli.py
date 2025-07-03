@@ -19,7 +19,7 @@ def cli():
     type=click.DateTime(formats=["%Y-%m-%d"]),
     default=date.today().isoformat(),
     show_default=True,
-    help="When the first instance should start (YYYY-MM-DD)"
+    help="When the first instance should start (YYYY-MM-DD). Default is today."
 )
 @click.option(
     "--period", "-p",
@@ -39,28 +39,42 @@ def cli():
     default=None,
     help="Optional weekday for weekly habits (0=Monday, 6=Sunday). Only used for weekly habits."
 )
+
 def add_habit(name : str, start_date : date, period_type : str, description : str=None, weekday: Optional[int] = None):
-    if period_type == 'daily':
-        habit = DailyHabit(name=name, description=description)
-    elif period_type == 'weekly':
-        habit = WeeklyHabit(name=name, description=description, weekday=weekday)
+    """
+    Add a new habit to the database.    
+    """
     
-    database.save_habit(database.engine, habit)
+    if period_type == 'daily':
+        habit = DailyHabit(name=name, description=description)                      # create a daily habit
+    elif period_type == 'weekly':
+        habit = WeeklyHabit(name=name, description=description, weekday=weekday)    # create a weekly habit with optional weekday
+    
+    database.save_habit(database.engine, habit)                                     # save the habit to the database
     
     if weekday is not None and period_type == "weekly":
-        start_date = habit.first_period_start(after=start_date)
+        start_date = habit.first_period_start(after=start_date)                     # calculate the first period start for weekly habits    
         
-    habit_instance = HabitInstance(habit=habit, period_start=start_date)
-    database.save_instance(database.engine, habit_instance)
+    habit_instance = HabitInstance(habit=habit, period_start=start_date)            # create a habit instance with the habit and the start date
+    database.save_instance(database.engine, habit_instance)                         # save the habit instance to the database
     click.echo(f'Habit "{name}" added successfully!')
     
     
     
 @cli.command("list-all-habits")
+@click.option(
+    "--type", "-t",
+    "habit_type",
+    type=click.Choice(["all", "daily", "weekly"], case_sensitive=False),
+    default="all",
+    show_default=True,
+    help="Filter habits by type (all, daily, weekly)"
+)
 def list_all_habits(habit_type: str = "all"):
-    """Retrieve all habits from the database."""
-    # Normalize
-    p = None if habit_type == "all" else habit_type.lower()
+    """
+    Retrieve all habits from the database.
+    """
+    p = None if habit_type == "all" else habit_type.lower()     # Filter by type"      
     habits = database.get_all_habits(period=p)
     if not habits:
         click.echo("No habits found.")
@@ -71,29 +85,31 @@ def list_all_habits(habit_type: str = "all"):
        
 @cli.command("list-all-active-habits")
 def list_all_active_habits():
-    """Retrieve all active habit instances and print in a neat table."""
-    insts = database.get_all_active_habits()
-    if not insts:
+    """
+    Retrieve all habit instances and print as a table.
+    """
+    instances = database.get_all_active_habits()
+    if not instances:
         click.echo("No active habits found.")
         return
 
     # Prepare the rows
     rows = []
-    for inst in insts:
+    for instance in instances:
         done = (
-            inst.completed_at.strftime("%Y-%m-%d %H:%M")
-            if inst.completed_at else "Not completed"
+            instance.completed_at.strftime("%Y-%m-%d %H:%M")
+            if instance.completed_at else "Not completed"
         )
         rows.append({
-            "id":           str(inst.id),
-            "name":         inst.habit.name,
-            "type":         inst.habit.type,
+            "id":           str(instance.id),
+            "name":         instance.habit.name,
+            "type":         instance.habit.type,
             "weekday":      # coerce to str or "N/A"
-                str(inst.habit.weekday)
-                if isinstance(inst.habit, WeeklyHabit) and inst.habit.weekday is not None
+                str(instance.habit.weekday)
+                if isinstance(instance.habit, WeeklyHabit) and instance.habit.weekday is not None
                 else "N/A",
-            "period_start": inst.period_start.strftime("%Y-%m-%d"),
-            "due":          inst.due_date.strftime("%Y-%m-%d") if inst.due_date else "No due date",
+            "period_start": instance.period_start.strftime("%Y-%m-%d"),
+            "due":          instance.due_date.strftime("%Y-%m-%d") if instance.due_date else "No due date",
             "completed":    done
         })
 
@@ -119,7 +135,9 @@ def list_all_active_habits():
     help="Optional date to complete tasks."
 )
 def complete_task(name: str = None, date : Optional[date] = None):
-    """Mark a habit instance as completed."""
+    """
+    Mark a habit instance as completed.
+    """
     if not name:
         click.echo("Please provide a habit instance ID to complete.")
         return
@@ -130,5 +148,4 @@ def complete_task(name: str = None, date : Optional[date] = None):
     except ValueError as e:
         click.echo(f"Error: {e}")
 
-if __name__ == "__main__":
-    cli()
+
