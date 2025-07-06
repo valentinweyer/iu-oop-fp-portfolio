@@ -1,5 +1,5 @@
 # db_schema.py
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, delete
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import (
     Session, sessionmaker, selectinload, selectin_polymorphic
@@ -14,7 +14,9 @@ from datetime import date
 from models import Habit, DailyHabit, WeeklyHabit, HabitInstance, Base
 
 
-engine   = create_engine("sqlite:///./habits.db", echo=False)
+engine = create_engine("sqlite:///./habits.db", echo=False)
+
+print("🔍 Using SQLite file:", engine.url)
 
 Base.metadata.create_all(engine)
 
@@ -27,6 +29,12 @@ def save_habit(engine: Engine, habit: Habit) -> None:
     Returns the ID of the saved habit.
     """
     with Session(engine) as session:
+        exists = session.execute(
+            select(Habit.id).where(Habit.name == habit.name)
+        ).scalar_one_or_none()
+        if exists:
+            raise ValueError(f"A habit named {habit.name!r} already exists.")
+
         session.add(habit)
         session.commit()
         session.refresh(habit)
@@ -39,6 +47,12 @@ def save_instance(engine: Engine, instance: HabitInstance) -> None:
     Returns the ID of the saved instance.
     """
     with Session(engine) as session:
+            exists = session.execute(
+            select(Habit.id).where((HabitInstance.habit_id == str(instance.habit_id),) and (HabitInstance.period_start == instance.period_start))
+            ).scalar_one_or_none()
+            if exists:
+                return exists.id
+        
             session.add(instance)
             session.commit()
             session.refresh(instance)
@@ -54,14 +68,14 @@ def complete_task(name: str, date : Optional[datetime.date] = None) -> None:
     
     with SessionLocal() as session:     
         # get habit id by name
-        habit_id = select(Habit.id).where(Habit.name==name)
-        habit_id = session.execute(habit_id).scalar_one_or_none()       
+        stmt = select(Habit.id).where(Habit.name==name)
+        habit_id = session.execute(stmt).scalar_one_or_none()       
         if not habit_id:
             raise ValueError(f"No habit named {name!r}")
         
         # get instance id by habit_id and date
-        instance_id = select(HabitInstance.id).where(HabitInstance.habit_id==habit_id).where(HabitInstance.period_start==date)
-        instance_id = session.execute(instance_id).scalar_one_or_none()
+        stmt = select(HabitInstance.id).where(HabitInstance.habit_id==habit_id).where(HabitInstance.period_start==date)
+        instance_id = session.execute(stmt).scalar_one_or_none()
         if not instance_id:
             raise ValueError(f"No instance for '{name}' on {date}")
         
@@ -78,12 +92,25 @@ def complete_task(name: str, date : Optional[datetime.date] = None) -> None:
             session.commit()
             session.refresh(instance)
             
-            # create the following habit instance
-            new_instance = HabitInstance(
-            habit=instance.habit,
-            period_start=instance.habit.next_period_start(instance.period_start)  # get next period start
-            )
-            save_instance(engine, new_instance) 
+            instance_id = select(HabitInstance.id).where(HabitInstance.habit_id==habit_id).where(HabitInstance.period_start==date)
+            
+            period_start = instance.habit.next_period_start(instance.period_start)
+            habit = instance.habit
+            
+            stmt = select(HabitInstance.id).where(HabitInstance.habit_id==habit_id).where(HabitInstance.period_start==period_start.date())
+            instance_id = session.execute(stmt).scalar_one_or_none()
+            
+            print(instance_id)
+
+            if instance_id is None:
+                print(instance_id)
+                # create the following habit instance
+                new_instance = HabitInstance(
+                habit=habit,
+                period_start=period_start  # get next period start
+                )
+                save_instance(engine, new_instance) 
+                print("Created new instance for folling day")
         
 def get_all_habits(period: Optional[str] = "all") -> list[Habit]:
     """
@@ -196,3 +223,14 @@ def longest_streak_all(habits: list[Habit], all_instances: list[HabitInstance]) 
     streaks = dict(map(streak_for, habits))
     overall_max = max(streaks.values(), default=0)
     return {"per_habit": streaks, "max_of_all": overall_max}
+
+def delete_habit_by_id(habit_id: str) -> None:
+    """
+    Delete the Habit with the given id (and cascade‐delete its instances).
+    """
+    with SessionLocal() as session:
+        session.execute(
+            delete(Habit)
+            .where(Habit.id == habit_id)
+        )
+        session.commit()

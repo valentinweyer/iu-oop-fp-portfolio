@@ -136,7 +136,7 @@ def list_all_active_habits():
     for r in rows:
         line = "  ".join(f"{r[c]:{widths[c]}}" for c in cols)
         click.echo(line)
-    
+
 @cli.command("complete-task")
 @click.argument("name", metavar="NAME")
 @click.option(
@@ -164,6 +164,11 @@ def complete_task(name: str = None, date : Optional[date] = None):
     
 @cli.command("show-longest-streak-for-habit")
 @click.argument("name", metavar="NAME")
+@click.option(
+    "--date", "-d",
+    default=None,
+    help="Optional date to complete tasks."
+)
 @ensure_up_to_date
 def show_longest_streak_for_habit(name: str = None):
     """
@@ -195,5 +200,12 @@ def show_longest_streak():
     click.echo(f"Overall best streak: {result['max_of_all']}")
     for h, s in result["per_habit"].items():
         click.echo(f"  • {h}: {s}")
+        
+        
+@cli.command("delete-habit")
+@click.argument("habit_id")
+def delete_habit_cli(habit_id):
+    database.delete_habit_by_id(habit_id)
+    click.echo(f"Deleted habit {habit_id}")
 
     

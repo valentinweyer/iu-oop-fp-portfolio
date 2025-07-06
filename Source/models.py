@@ -2,7 +2,7 @@ from datetime import datetime, date, timedelta
 from uuid import uuid4
 from typing import Optional
 from sqlalchemy import (
-    Column, String, DateTime, Date, ForeignKey, Integer
+    Column, String, DateTime, Date, ForeignKey, Integer, UniqueConstraint
 )
 from sqlalchemy.orm import relationship, declarative_base
 
@@ -128,6 +128,9 @@ class HabitInstance(Base):
     """
     
     __tablename__ = "habit_instances"
+    __table_args__ = (
+      UniqueConstraint("habit_id", "period_start", name="uix_habit_period"),
+    )
 
     id           = Column(String, primary_key=True, default=lambda: str(uuid4()))
     habit_id     = Column(String, ForeignKey("habits.id"), nullable=False)
