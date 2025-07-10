@@ -166,17 +166,27 @@ def complete_task(name: str = None, date : Optional[date] = None):
     except ValueError as e:
         click.echo(f"Error: {e}")
 
+        
+@cli.command("show-longest-streak")
+@click.option(
+    "--name", "-n",
+    default=None,
+    help="Optional name to filter habits for longest streak. If not provided, shows overall best streak."
+)
+@ensure_up_to_date
 
-
-    
-@cli.command("show-longest-streak-for-habit")
-@click.argument("name", metavar="NAME")
-def show_longest_streak_for_habit(name: str = None):
+def show_longest_streak(name: str = None):
     """
-    Show the longest streak for a habit.
+    Show the longest streak for a habit or best streak of all habits.
     """
     if not name:
-        click.echo("Please provide a habit name to show the longest streak.")
+        habits      = database.get_all_habits()
+        instances   = database.get_all_active_habits()
+
+        result = database.longest_streak_all(habits, instances)
+        click.echo(f"Overall best streak: {result['max_of_all']}")
+        for h, s in result["per_habit"].items():
+            click.echo(f"  • {h}: {s}")
         return
     
     habit = database.get_habit_by_name(name)
@@ -186,21 +196,6 @@ def show_longest_streak_for_habit(name: str = None):
         click.echo(f"Longest streak for '{name}': {streak} days")
     except ValueError as e:
         click.echo(f"Error: {e}")
-        
-@cli.command("show-longest-streak")
-@ensure_up_to_date
-def show_longest_streak():
-    """
-    Show the longest streak for all habits.
-    """
-
-    habits      = database.get_all_habits()
-    instances   = database.get_all_active_habits()
-
-    result = database.longest_streak_all(habits, instances)
-    click.echo(f"Overall best streak: {result['max_of_all']}")
-    for h, s in result["per_habit"].items():
-        click.echo(f"  • {h}: {s}")
         
         
 @cli.command("delete-habit")
