@@ -67,8 +67,7 @@ class DailyHabit(Habit):
         Calculate the start of the next period for the habit after a given date. 
         For this habit type, it is always the next day.
         """
-        next_day = after + timedelta(days=1)
-        return datetime.combine(next_day, datetime.min.time())
+        return after + timedelta(days=1)
     
     def get_data(self) -> dict:
         """
@@ -152,7 +151,10 @@ class HabitInstance(Base):
         """
         Check if the habit instance is completed.
         """
-        return self.completed_at is not None
+        if self.completed_at is None:
+            return False
+        else:
+            return True
         
     def mark_completed(self):
         """

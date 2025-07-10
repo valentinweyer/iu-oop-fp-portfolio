@@ -1,5 +1,5 @@
 # db_schema.py
-from sqlalchemy import create_engine, select, delete
+from sqlalchemy import create_engine, select, delete, literal
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import (
     Session, sessionmaker, selectinload, selectin_polymorphic
@@ -14,7 +14,7 @@ from datetime import date
 from models import Habit, DailyHabit, WeeklyHabit, HabitInstance, Base
 
 
-engine = create_engine("sqlite:///./habits.db", echo=False)
+engine = create_engine("sqlite:////Users/valentinweyer/Library/CloudStorage/Dropbox/Valentin/Uni/Semester 1/Object oriented and functional programming in Python/Source/habits.db", echo=False)
 
 print("🔍 Using SQLite file:", engine.url)
 
@@ -97,7 +97,17 @@ def complete_task(name: str, date : Optional[datetime.date] = None) -> None:
             period_start = instance.habit.next_period_start(instance.period_start)
             habit = instance.habit
             
-            stmt = select(HabitInstance.id).where(HabitInstance.habit_id==habit_id).where(HabitInstance.period_start==period_start.date())
+            
+            # Compute the next period (may be a datetime.datetime)
+            raw_next = instance.habit.next_period_start(instance.period_start)
+
+            # Normalize to a pure date for the SQL comparison:
+            if isinstance(raw_next, datetime.datetime):
+                lookup_date = raw_next.date()
+            else:
+                lookup_date = raw_next
+            
+            stmt = select(HabitInstance.id).where(HabitInstance.habit_id==habit_id).where(HabitInstance.period_start==lookup_date)
             instance_id = session.execute(stmt).scalar_one_or_none()
             
             print(instance_id)
@@ -136,13 +146,21 @@ def get_all_habits(period: Optional[str] = "all") -> list[Habit]:
     with SessionLocal() as session:
         return session.scalars(stmt).all()
         
-def get_all_active_habits(Name = Optional[str]) -> list[Habit]:
+def get_all_active_habits(name : str = None) -> list[Habit]:
     """
     Get all active habits [optionally by name].
     """
     # Build a query to fetch all HabitInstance rows, eagerly loading each instance’s related Habit 
     # plus any subclass‐specific columns for WeeklyHabit in a single round‐trip.
-    stmt = select(HabitInstance).options(selectinload(HabitInstance.habit), selectin_polymorphic(Habit, [WeeklyHabit]))
+    if name is None:
+        print("No name provided, fetching all active habits")
+        stmt = select(HabitInstance).options(selectinload(HabitInstance.habit), selectin_polymorphic(Habit, [WeeklyHabit]))
+    else:
+        print(f"Fetching all active habits with name={name!r}")
+        stmt = select(HabitInstance).options(selectinload(HabitInstance.habit), selectin_polymorphic(Habit, [WeeklyHabit])).where(
+            HabitInstance.habit_id == get_habit_by_name(name).id
+        )
+    
     
     with SessionLocal() as session:
         return session.scalars(stmt).all()
@@ -171,6 +189,57 @@ def longest_streak_for_habit(instances: list[HabitInstance], habit: WeeklyHabit|
     # Start with (max_streak=0, last_date=None, cur_streak=0)
     max_streak, _, _ = reduce(reducer, dates, (0, None, 0))
     return max_streak
+
+
+def prev_period_start(habit, d: date) -> date:
+    """Return the start of the period immediately before d."""
+    if isinstance(habit, DailyHabit):
+        return d - datetime.timedelta(days=1)
+    # weekly: go back exactly 7 days
+    return d - datetime.timedelta(days=7)
+
+
+def current_streak_for_habit(habit: DailyHabit|WeeklyHabit) -> int:
+    """
+    Return the current streak for a habit.
+    """
+    with SessionLocal() as session:
+        # Get all instances for this habit, ordered by period_start
+        today = date.today()
+        stmt = (
+            select(HabitInstance)
+            .where(
+                HabitInstance.habit_id == habit.id,
+                HabitInstance.period_start <= today
+            )
+            .order_by(HabitInstance.period_start)
+        )
+        instances = session.scalars(stmt).all()
+
+        if not instances:
+            return 0  # No instances, no streak
+
+        # Get the most recent instance
+        last_instance = instances[-1]
+
+        # If the last instance is not completed, return 0
+        if not last_instance.is_completed():
+            return last_instance.period_start
+
+        # Count how many consecutive completed instances there are from the end
+        streak = 0
+        expected = instances[-1].period_start if instances else None
+
+        for inst in reversed(instances):
+            # stop if unmet expectation or not done
+            if inst.period_start != expected or not inst.is_completed():
+                break
+
+            # count it, then shift the expectation back one more period
+            streak   += 1
+            expected  = prev_period_start(habit, expected)
+
+        return streak
 
 
 def get_habit_by_name(name: str) -> Optional[Habit]:
@@ -212,15 +281,25 @@ def longest_streak_all(habits: list[Habit], all_instances: list[HabitInstance]) 
     Compute the longest streak of each habit, then return the overall best.
     Returns a dict mapping habit.name → its longest streak.
     """
+    
     def streak_for(habit):
-        insts = sorted(
-            filter(lambda i: i.habit_id == habit.id, all_instances),
-            key=lambda i: i.period_start
-        )
-        return (habit.name, longest_streak_for_habit(insts, habit))
+        raw = current_streak_for_habit(habit)  # date or int
 
-    # Map each habit to its streak, then pick the max
-    streaks = dict(map(streak_for, habits))
+        if isinstance(raw, date):
+            delta_days = (date.today() - raw).days
+            # convert to periods
+            if isinstance(habit, WeeklyHabit):
+                # full weeks since that date
+                value = delta_days // 7
+            else:  # DailyHabit
+                value = delta_days
+        else:
+            # raw is already the active‐streak length in periods
+            value = raw
+
+        return (habit.name, value)
+
+    streaks     = dict(map(streak_for, habits))
     overall_max = max(streaks.values(), default=0)
     return {"per_habit": streaks, "max_of_all": overall_max}
 

@@ -2,8 +2,9 @@ from cli import cli
 
 from cli import complete_task
 from datetime import date
+from database import current_streak_for_habit
 
 if __name__ == "__main__":
-    #cli(args=["complete-task", "Test-backfill", "--date", "2025-06-10"])
+    #cli(args=["show-longest-streak-for-habit", "Meditate"])
     cli()
     

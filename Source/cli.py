@@ -93,12 +93,21 @@ def list_all_habits(habit_type: str = "all"):
         click.echo(f"  • [{h.id}] {h.name} ({h.type}), created {h.date_created.date()}")
        
 @cli.command("list-all-active-habits")
+@click.option(
+    "--name", "-n",
+    default=None,
+    show_default=True,
+    help="Optional name to filter active habits."
+)
 @ensure_up_to_date
-def list_all_active_habits():
+def list_all_active_habits(name : str = None):
     """
     Retrieve all habit instances and print as a table.
     """
-    instances = database.get_all_active_habits()
+    instances = database.get_all_active_habits(name=name)  # Get all active habit instances, optionally filtered by name
+    # Sort by the date (earliest first)
+    instances.sort(key=lambda inst: inst.period_start)
+    
     if not instances:
         click.echo("No active habits found.")
         return
@@ -164,12 +173,6 @@ def complete_task(name: str = None, date : Optional[date] = None):
     
 @cli.command("show-longest-streak-for-habit")
 @click.argument("name", metavar="NAME")
-@click.option(
-    "--date", "-d",
-    default=None,
-    help="Optional date to complete tasks."
-)
-@ensure_up_to_date
 def show_longest_streak_for_habit(name: str = None):
     """
     Show the longest streak for a habit.
@@ -181,7 +184,7 @@ def show_longest_streak_for_habit(name: str = None):
     habit = database.get_habit_by_name(name)
     
     try:
-        streak = database.longest_streak_for_habit(instances=database.get_all_active_habits(), habit=habit)
+        streak = database.current_streak_for_habit(habit=habit)               # database.longest_streak_for_habit(instances=database.get_all_active_habits(), habit=habit)
         click.echo(f"Longest streak for '{name}': {streak} days")
     except ValueError as e:
         click.echo(f"Error: {e}")
