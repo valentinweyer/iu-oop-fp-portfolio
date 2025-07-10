@@ -1,10 +1,8 @@
 import click
-from datetime import date, datetime
+from datetime import date
 from typing import Optional
-from sqlalchemy.orm import Session
 
-
-from models import DailyHabit, WeeklyHabit, HabitInstance, Habit
+from models import DailyHabit, WeeklyHabit, HabitInstance
 import database
 
 

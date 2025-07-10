@@ -1,11 +1,10 @@
 # db_schema.py
-from sqlalchemy import create_engine, select, delete, literal
+from sqlalchemy import create_engine, select, delete
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import (
     Session, sessionmaker, selectinload, selectin_polymorphic
 )
-from datetime import datetime
-from typing import Optional, Sequence
+from typing import Optional
 import datetime
 from operator import itemgetter
 from functools import reduce
@@ -47,16 +46,23 @@ def save_instance(engine: Engine, instance: HabitInstance) -> None:
     Returns the ID of the saved instance.
     """
     with Session(engine) as session:
-            exists = session.execute(
-            select(Habit.id).where((HabitInstance.habit_id == str(instance.habit_id),) and (HabitInstance.period_start == instance.period_start))
-            ).scalar_one_or_none()
-            if exists:
-                return exists.id
-        
-            session.add(instance)
-            session.commit()
-            session.refresh(instance)
-            return instance.id
+        # 1) Look for an existing instance in the *habit_instances* table
+        stmt = (
+            select(HabitInstance.id)
+            .where(
+                HabitInstance.habit_id     == str(instance.habit_id),
+                HabitInstance.period_start == instance.period_start
+            )
+        )
+        existing_id = session.execute(stmt).scalar_one_or_none()
+        if existing_id is not None:
+            return existing_id
+
+        # 2) Otherwise insert
+        session.add(instance)
+        session.commit()
+        session.refresh(instance)
+        return instance.id
         
 def complete_task(name: str, date : Optional[datetime.date] = None) -> None:
     """
@@ -311,5 +317,9 @@ def delete_habit_by_id(habit_id: str) -> None:
         session.execute(
             delete(Habit)
             .where(Habit.id == habit_id)
+        )
+        session.execute(
+            delete(HabitInstance)
+            .where(HabitInstance.habit_id == habit_id)
         )
         session.commit()

@@ -1,7 +1,5 @@
 
 from datetime import date, timedelta
-from uuid import uuid4
-from sqlalchemy.orm import Session
 from database import engine, SessionLocal, Base
 from models import DailyHabit, WeeklyHabit, HabitInstance, Habit
 
