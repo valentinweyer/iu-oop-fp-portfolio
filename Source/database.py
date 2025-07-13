@@ -9,12 +9,23 @@ import datetime
 from operator import itemgetter
 from functools import reduce
 from datetime import date
+import os
+from pathlib import Path
 
 from models import Habit, DailyHabit, WeeklyHabit, HabitInstance, Base
 
 
-engine = create_engine("sqlite:////Users/valentinweyer/Library/CloudStorage/Dropbox/Valentin/Uni/Semester 1/Object oriented and functional programming in Python/Source/habits.db", echo=False)
+# 1) Find this file’s directory
+BASE_DIR = Path(__file__).resolve().parent
 
+# 2) Build the DB path relative to it
+DB_PATH = BASE_DIR / "habits.db"
+
+# 3) Create the engine using that absolute path
+engine = create_engine(
+    f"sqlite:///{DB_PATH}",
+    echo=False,
+)
 print("🔍 Using SQLite file:", engine.url)
 
 Base.metadata.create_all(engine)

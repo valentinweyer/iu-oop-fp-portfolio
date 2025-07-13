@@ -1,6 +1,7 @@
 import click
 from datetime import date
 from typing import Optional
+import sqlalchemy
 
 from models import DailyHabit, WeeklyHabit, HabitInstance
 import database
@@ -164,7 +165,14 @@ def complete_task(name: str = None, date : Optional[date] = None):
         database.complete_task(name, date)
         click.echo(f"Habit instance {name} marked as completed!")
     except ValueError as e:
+        # User-facing errors (e.g., "habit not found")
         click.echo(f"Error: {e}")
+    except sqlalchemy.exc.SQLAlchemyError as e:
+        # Database-level errors
+        click.echo(f"Database error: Could not complete the operation. Details: {e}")
+    except Exception as e:
+        # Catch any other unexpected errors
+        click.echo(f"An unexpected error occurred: {e}")
 
         
 @cli.command("show-longest-streak")
