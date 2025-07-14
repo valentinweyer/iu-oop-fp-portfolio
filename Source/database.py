@@ -15,13 +15,13 @@ from pathlib import Path
 from models import Habit, DailyHabit, WeeklyHabit, HabitInstance, Base
 
 
-# 1) Find this file’s directory
+# Find this file’s directory
 BASE_DIR = Path(__file__).resolve().parent
 
-# 2) Build the DB path relative to it
+# Build the DB path relative to it
 DB_PATH = BASE_DIR / "habits.db"
 
-# 3) Create the engine using that absolute path
+# Create the engine using that absolute path
 engine = create_engine(
     f"sqlite:///{DB_PATH}",
     echo=False,
@@ -33,12 +33,12 @@ Base.metadata.create_all(engine)
 SessionLocal = sessionmaker(bind=engine)
 
 
-def save_habit(engine: Engine, habit: Habit) -> None:
+def save_habit(habit: Habit) -> None:
     """
     Saves a Habit to the database.
     Returns the ID of the saved habit.
     """
-    with Session(engine) as session:
+    with SessionLocal() as session:
         exists = session.execute(
             select(Habit.id).where(Habit.name == habit.name)
         ).scalar_one_or_none()
@@ -51,12 +51,12 @@ def save_habit(engine: Engine, habit: Habit) -> None:
         return habit.id
         
 
-def save_instance(engine: Engine, instance: HabitInstance) -> None:
+def save_instance(instance: HabitInstance) -> None:
     """
     Saves a HabitInstance to the database.
     Returns the ID of the saved instance.
     """
-    with Session(engine) as session:
+    with SessionLocal() as session:
         # 1) Look for an existing instance in the *habit_instances* table
         stmt = (
             select(HabitInstance.id)
@@ -136,7 +136,7 @@ def complete_task(name: str, date : Optional[datetime.date] = None) -> None:
                 habit=habit,
                 period_start=period_start  # get next period start
                 )
-                save_instance(engine, new_instance) 
+                save_instance(new_instance) 
                 print("Created new instance for folling day")
         
 def get_all_habits(period: Optional[str] = "all") -> list[Habit]:
@@ -208,12 +208,14 @@ def longest_streak_for_habit(instances: list[HabitInstance], habit: WeeklyHabit|
     return max_streak
 
 
-def prev_period_start(habit, d: date) -> date:
-    """Return the start of the period immediately before d."""
+def prev_period_start(habit, date: date) -> date:
+    """
+    Return the start of the period immediately before date.
+    """
     if isinstance(habit, DailyHabit):
-        return d - datetime.timedelta(days=1)
+        return date - datetime.timedelta(days=1)
     # weekly: go back exactly 7 days
-    return d - datetime.timedelta(days=7)
+    return date - datetime.timedelta(days=7)
 
 
 def current_streak_for_habit(habit: DailyHabit|WeeklyHabit) -> int:
@@ -268,6 +270,21 @@ def get_habit_by_name(name: str) -> Optional[Habit]:
         return session.execute(stmt).scalar_one_or_none()
     
 def backfill_instances():
+    """
+    Ensure every habit has a continuous sequence of HabitInstance records
+    from its first period up through today.
+
+    For each habit in the database:
+      1. Load the most recent HabitInstance (if any).
+      2. If no instances exist yet, create the very first one starting at
+         the habit's `first_period_start` for today.
+      3. Repeatedly generate and persist new instances by calling
+         `habit.next_period_start(last.period_start)` until the latest
+         instance covers today's period.
+
+    This guarantees there are no gaps in the timeline of instances for any habit,
+    which is useful for accurate streak computations and reporting.
+    """
     today = date.today()
     with SessionLocal() as session:
         for habit in session.query(Habit).all():

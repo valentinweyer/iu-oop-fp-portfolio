@@ -57,13 +57,13 @@ def add_habit(name : str, start_date : date, period_type : str, description : st
     elif period_type == 'weekly':
         habit = WeeklyHabit(name=name, description=description, weekday=weekday)    # create a weekly habit with optional weekday
     
-    database.save_habit(database.engine, habit)                                     # save the habit to the database
+    database.save_habit(habit)                                     # save the habit to the database
     
     if weekday is not None and period_type == "weekly":
         start_date = habit.first_period_start(after=start_date)                     # calculate the first period start for weekly habits    
         
     habit_instance = HabitInstance(habit=habit, period_start=start_date)            # create a habit instance with the habit and the start date
-    database.save_instance(database.engine, habit_instance)                         # save the habit instance to the database
+    database.save_instance(habit_instance)                         # save the habit instance to the database
     click.echo(f'Habit "{name}" added successfully!')
     
     
@@ -211,5 +211,3 @@ def show_longest_streak(name: str = None):
 def delete_habit_cli(habit_id):
     database.delete_habit_by_id(habit_id)
     click.echo(f"Deleted habit {habit_id}")
-
-    
