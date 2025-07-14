@@ -20,3 +20,6 @@ __pycache__/
 
 # Logs and databases
 *.log
+
+# Graphs
+uml.md
