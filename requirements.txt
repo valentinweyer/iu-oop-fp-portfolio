@@ -1,3 +1,5 @@
 click
 SQLAlchemy
 pytest
+fastapi
+uvicorn

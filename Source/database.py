@@ -182,30 +182,7 @@ def get_all_active_habits(name : str = None) -> list[Habit]:
     with SessionLocal() as session:
         return session.scalars(stmt).all()
     
-    
-def longest_streak_for_habit(instances: list[HabitInstance], habit: WeeklyHabit|DailyHabit) -> int:
-    """
-    Given a sorted list of all HabitInstance for one habit,
-    return its maximum consecutive‐period streak.
-    """
-    # 1) Filter only completed instances
-    completed = list(filter(lambda inst: inst.is_completed(), instances))
 
-    # 2) Map each to its period_start date
-    dates = list(map(itemgetter("period_start"), map(lambda i: {"period_start": i.period_start}, completed)))
-
-    # 3) Reduce over runs: compare each to the previous-next via habit.next_period_start()
-    def reducer(acc, current):
-        max_streak, last_date, cur_streak = acc
-        if last_date and current == habit.next_period_start(last_date):
-            cur_streak += 1
-        else:
-            cur_streak = 1
-        return (max(max_streak, cur_streak), current, cur_streak)
-
-    # Start with (max_streak=0, last_date=None, cur_streak=0)
-    max_streak, _, _ = reduce(reducer, dates, (0, None, 0))
-    return max_streak
 
 
 def prev_period_start(habit, date: date) -> date:

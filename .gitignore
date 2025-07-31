@@ -23,3 +23,10 @@ __pycache__/
 
 # Graphs
 uml.md
+
+# Docs
+*.pptx
+
+
+Development Phase/presentation_content.md
+Development Phase/presentation_for_powerpoint.txt
