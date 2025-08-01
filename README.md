@@ -138,6 +138,8 @@ Deletes a habit from the database.
 python Source/main.py delete-habit HABIT_ID
 ```
 
+### Help
+
 You can always just use
 ```bash
 python Source/main.py --help
