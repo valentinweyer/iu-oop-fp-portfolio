@@ -1,15 +1,12 @@
 # db_schema.py
 from sqlalchemy import create_engine, select, delete
-from sqlalchemy.engine import Engine
 from sqlalchemy.orm import (
-    Session, sessionmaker, selectinload, selectin_polymorphic
+    sessionmaker, selectinload, selectin_polymorphic
 )
 from typing import Optional
 import datetime
-from operator import itemgetter
-from functools import reduce
+
 from datetime import date
-import os
 from pathlib import Path
 
 from models import Habit, DailyHabit, WeeklyHabit, HabitInstance, Base
@@ -19,14 +16,14 @@ from models import Habit, DailyHabit, WeeklyHabit, HabitInstance, Base
 BASE_DIR = Path(__file__).resolve().parent
 
 # Build the DB path relative to it
-DB_PATH = BASE_DIR / "habits.db"
+DB_PATH = BASE_DIR / "habits_test.db"
 
 # Create the engine using that absolute path
 engine = create_engine(
     f"sqlite:///{DB_PATH}",
     echo=False,
 )
-print("🔍 Using SQLite file:", engine.url)
+#print("🔍 Using SQLite file:", engine.url)
 
 Base.metadata.create_all(engine)
 
@@ -126,18 +123,14 @@ def complete_task(name: str, date : Optional[datetime.date] = None) -> None:
             
             stmt = select(HabitInstance.id).where(HabitInstance.habit_id==habit_id).where(HabitInstance.period_start==lookup_date)
             instance_id = session.execute(stmt).scalar_one_or_none()
-            
-            print(instance_id)
 
             if instance_id is None:
-                print(instance_id)
                 # create the following habit instance
                 new_instance = HabitInstance(
                 habit=habit,
                 period_start=period_start  # get next period start
                 )
                 save_instance(new_instance) 
-                print("Created new instance for folling day")
         
 def get_all_habits(period: Optional[str] = "all") -> list[Habit]:
     """
@@ -200,41 +193,41 @@ def current_streak_for_habit(habit: DailyHabit|WeeklyHabit) -> int:
     Return the current streak for a habit.
     """
     with SessionLocal() as session:
-        # Get all instances for this habit, ordered by period_start
         today = date.today()
+        
+        # Get all instances for this habit up to today, in reverse order
         stmt = (
             select(HabitInstance)
-            .where(
-                HabitInstance.habit_id == habit.id,
-                HabitInstance.period_start <= today
-            )
-            .order_by(HabitInstance.period_start)
+            .where(HabitInstance.habit_id == habit.id, HabitInstance.period_start <= today)
+            .order_by(HabitInstance.period_start.desc())
         )
         instances = session.scalars(stmt).all()
 
         if not instances:
-            return 0  # No instances, no streak
+            return 0
 
-        # Get the most recent instance
-        last_instance = instances[-1]
-
-        # If the last instance is not completed, return 0
-        if not last_instance.is_completed():
-            return last_instance.period_start
-
-        # Count how many consecutive completed instances there are from the end
         streak = 0
-        expected = instances[-1].period_start if instances else None
-
-        for inst in reversed(instances):
-            # stop if unmet expectation or not done
-            if inst.period_start != expected or not inst.is_completed():
+        
+        # If the most recent instance is today and not completed, check streak from yesterday.
+        if instances[0].period_start == today and not instances[0].is_completed():
+            instances_to_check = instances[1:]
+        else:
+            instances_to_check = instances
+        
+        if not instances_to_check:
+            return 0
+            
+        # The first instance in our list to check is where the streak must begin.
+        expected_date = instances_to_check[0].period_start
+        
+        for instance in instances_to_check:
+            if instance.is_completed() and instance.period_start == expected_date:
+                streak += 1
+                expected_date = prev_period_start(habit, expected_date)
+            else:
+                # The streak is broken.
                 break
-
-            # count it, then shift the expectation back one more period
-            streak   += 1
-            expected  = prev_period_start(habit, expected)
-
+                
         return streak
 
 

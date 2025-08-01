@@ -168,3 +168,4 @@ def test_current_streak(db_session):
 
     streak = database.current_streak_for_habit(habit)
     assert streak == 3
+

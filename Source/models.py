@@ -156,11 +156,14 @@ class HabitInstance(Base):
         else:
             return True
         
-    def mark_completed(self):
+    def mark_completed(self, completed_at: Optional[datetime] = None):
         """
         Mark the habit instance as completed.
         """
-        self.completed_at = datetime.now()
+        if completed_at:
+            self.completed_at = completed_at
+        else:
+            self.completed_at = datetime.now()
         
         
     def get_data(self) -> dict:
