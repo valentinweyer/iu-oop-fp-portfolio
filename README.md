@@ -138,6 +138,17 @@ Deletes a habit from the database.
 python Source/main.py delete-habit HABIT_ID
 ```
 
+You can always just use
+```bash
+python Source/main.py --help
+```
+or 
+```bash
+python Source/main.py [COMMAND] --help
+```
+to open the help menu for the application or command.
+
+
 ## Project Phases 
 
 ### Conception Phase 
