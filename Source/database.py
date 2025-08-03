@@ -16,7 +16,7 @@ from models import Habit, DailyHabit, WeeklyHabit, HabitInstance, Base
 BASE_DIR = Path(__file__).resolve().parent
 
 # Build the DB path relative to it
-DB_PATH = BASE_DIR / "habits_test.db"
+DB_PATH = BASE_DIR / "habits_test3.db"
 
 # Create the engine using that absolute path
 engine = create_engine(
@@ -188,13 +188,14 @@ def prev_period_start(habit, date: date) -> date:
     return date - datetime.timedelta(days=7)
 
 
-def current_streak_for_habit(habit: DailyHabit|WeeklyHabit) -> int:
+def current_streak_for_habit(habit: DailyHabit|WeeklyHabit, today: Optional[date] = None) -> int:
     """
     Return the current streak for a habit.
     """
-    with SessionLocal() as session:
+    if today is None:
         today = date.today()
-        
+
+    with SessionLocal() as session:
         # Get all instances for this habit up to today, in reverse order
         stmt = (
             select(HabitInstance)

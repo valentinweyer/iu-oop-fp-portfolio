@@ -8,6 +8,7 @@ import os
 
 # Use an in-memory SQLite database for testing
 TEST_DB_PATH = "test_habits.db"
+BASE_TEST_DATE = datetime.date(2025, 8, 4) # A Monday
 
 @pytest.fixture(scope="session")
 def engine():
@@ -78,14 +79,14 @@ def test_complete_task(db_session):
     habit = DailyHabit(name="Drink water", description="Drink 8 glasses of water every day")
     database.save_habit(habit)
     
-    # Create a habit instance for today
-    instance = HabitInstance(habit=habit, period_start=datetime.date.today())
+    # Create a habit instance for the base date
+    instance = HabitInstance(habit=habit, period_start=BASE_TEST_DATE)
     database.save_instance(instance)
 
-    database.complete_task("Drink water", datetime.date.today())
+    database.complete_task("Drink water", BASE_TEST_DATE)
     
     # Re-fetch the instance to check its state
-    completed_instance = db_session.query(HabitInstance).filter(HabitInstance.habit_id == habit.id, HabitInstance.period_start == datetime.date.today()).one()
+    completed_instance = db_session.query(HabitInstance).filter(HabitInstance.habit_id == habit.id, HabitInstance.period_start == BASE_TEST_DATE).one()
     assert completed_instance.is_completed()
 
 def test_get_all_habits(db_session):
@@ -136,7 +137,7 @@ def test_delete_habit(db_session):
     database.save_habit(habit)
     habit_id = habit.id
     
-    instance = HabitInstance(habit=habit, period_start=datetime.date.today())
+    instance = HabitInstance(habit=habit, period_start=BASE_TEST_DATE)
     database.save_instance(instance)
     
     database.delete_habit_by_id(habit_id)
@@ -155,17 +156,15 @@ def test_current_streak(db_session):
     database.save_habit(habit)
     
     # Create a streak of 3
-    today = datetime.date.today()
     for i in range(3):
-        instance_date = today - datetime.timedelta(days=i)
+        instance_date = BASE_TEST_DATE - datetime.timedelta(days=i)
         instance = HabitInstance(habit=habit, period_start=instance_date)
         database.save_instance(instance)
         database.complete_task(habit.name, instance_date)
         
     # Add an uncompleted task, which should not break the streak calculation for completed tasks
-    uncompleted_instance = HabitInstance(habit=habit, period_start=today - datetime.timedelta(days=3))
+    uncompleted_instance = HabitInstance(habit=habit, period_start=BASE_TEST_DATE - datetime.timedelta(days=3))
     database.save_instance(uncompleted_instance)
 
-    streak = database.current_streak_for_habit(habit)
+    streak = database.current_streak_for_habit(habit, today=BASE_TEST_DATE)
     assert streak == 3
-

@@ -157,7 +157,7 @@ def list_all_habits(habit_type: str = "all"):
 
     for h in habits:
         table.add_row(
-            str(h.id),
+            str(h.id)[:2] + "..." + str(h.id)[-2:],  # Truncate ID for better display
             h.name,
             h.type,
             h.date_created.date().isoformat()
@@ -202,7 +202,7 @@ def list_all_active_habits(name : str = None):
             else "N/A"
         )
         table.add_row(
-            str(instance.id),
+            str(instance.id)[:2] + "..." + str(instance.id)[-2:],
             instance.habit.name,
             instance.habit.type,
             weekday,
