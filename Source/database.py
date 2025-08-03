@@ -13,10 +13,13 @@ from models import Habit, DailyHabit, WeeklyHabit, HabitInstance, Base
 
 
 # Find this file’s directory
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Build the DB path relative to it
-DB_PATH = BASE_DIR / "habits_test3.db"
+DB_PATH = BASE_DIR / "db/habits.db"
+
+if not DB_PATH.parent.exists():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # Create the engine using that absolute path
 engine = create_engine(
