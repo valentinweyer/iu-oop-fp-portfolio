@@ -26,7 +26,16 @@ uml.md
 
 # Docs
 *.pptx
+*.docx
+*.pdf
+*.png
+*.svg
+
+# VS Code settings
+.vscode/settings.json
 
 
+# Development Phase
 Development Phase/presentation_content.md
 Development Phase/presentation_for_powerpoint.txt
+Development Phase/diagrams_for_presentation.md

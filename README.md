@@ -150,6 +150,15 @@ python Source/main.py [COMMAND] --help
 ```
 to open the help menu for the application or command.
 
+## Testing
+
+To run the automated tests, make sure you have `pytest` installed (it's included in `requirements.txt`). Then, run the following command from the project's root directory:
+
+```bash
+pytest
+```
+
+This will discover and run all the tests in the `Source/test_project.py` file.
 
 ## Project Phases 
 

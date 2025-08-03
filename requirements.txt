@@ -1,5 +1,4 @@
 click
 SQLAlchemy
 pytest
-fastapi
-uvicorn
+rich
