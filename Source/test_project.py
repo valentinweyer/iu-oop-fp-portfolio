@@ -47,6 +47,9 @@ def db_session(engine, tables, monkeypatch):
 
 
 def test_create_daily_habit(db_session):
+    """
+    Tests the creation and retrieval of a daily habit.
+    """
     habit = DailyHabit(name="Read a book", description="Read 20 pages of a book every day")
     database.save_habit(habit)
     
@@ -57,6 +60,9 @@ def test_create_daily_habit(db_session):
     assert isinstance(retrieved_habit, DailyHabit)
 
 def test_create_weekly_habit(db_session):
+    """
+    Tests the creation and retrieval of a weekly habit.
+    """
     habit = WeeklyHabit(name="Go to the gym", description="Go to the gym every Monday", weekday=0)
     database.save_habit(habit)
     
@@ -68,6 +74,9 @@ def test_create_weekly_habit(db_session):
     assert retrieved_habit.weekday == 0
 
 def test_prevent_duplicate_habit(db_session):
+    """
+    Tests that creating a habit with a duplicate name raises a ValueError.
+    """
     habit = DailyHabit(name="Duplicate Habit", description="A habit to test duplication.")
     database.save_habit(habit)
     
@@ -76,6 +85,9 @@ def test_prevent_duplicate_habit(db_session):
         database.save_habit(duplicate_habit)
 
 def test_complete_task(db_session):
+    """
+    Tests marking a habit instance as complete.
+    """
     habit = DailyHabit(name="Drink water", description="Drink 8 glasses of water every day")
     database.save_habit(habit)
     
@@ -90,6 +102,9 @@ def test_complete_task(db_session):
     assert completed_instance.is_completed()
 
 def test_get_all_habits(db_session):
+    """
+    Tests retrieving all habits from the database.
+    """
     # Clear existing habits to ensure a clean slate
     db_session.query(Habit).delete()
     db_session.commit()
@@ -103,6 +118,9 @@ def test_get_all_habits(db_session):
     assert len(habits) == 2
 
 def test_get_daily_habits(db_session):
+    """
+    Tests retrieving only daily habits from the database.
+    """
     db_session.query(Habit).delete()
     db_session.commit()
     
@@ -116,6 +134,9 @@ def test_get_daily_habits(db_session):
     assert habits[0].name == "Habit 3"
 
 def test_get_weekly_habits(db_session):
+    """
+    Tests retrieving only weekly habits from the database.
+    """
     db_session.query(Habit).delete()
     db_session.commit()
 
@@ -129,6 +150,9 @@ def test_get_weekly_habits(db_session):
     assert habits[0].name == "Habit 6"
 
 def test_delete_habit(db_session):
+    """
+    Tests deleting a habit and its associated instances.
+    """
     db_session.query(Habit).delete()
     db_session.query(HabitInstance).delete()
     db_session.commit()
@@ -148,6 +172,9 @@ def test_delete_habit(db_session):
     assert len(instances) == 0
 
 def test_current_streak(db_session):
+    """
+    Tests the calculation of the current streak for a habit.
+    """
     db_session.query(Habit).delete()
     db_session.query(HabitInstance).delete()
     db_session.commit()

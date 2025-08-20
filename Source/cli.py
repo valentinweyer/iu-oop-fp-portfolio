@@ -115,7 +115,16 @@ def ensure_up_to_date(f):
     help="For weekly habits, the day of the week (0=Monday, 6=Sunday). Defaults to None for daily habits.",
 )
 def add_habit(name : str, start_date : date, period_type : str, description : str=None, weekday: Optional[int] = None):
-    
+    """
+    Adds a new habit to the database.
+
+    Args:
+        name (str): The name of the habit.
+        start_date (date): The date when the first instance should start.
+        period_type (str): The habit's periodicity ('daily' or 'weekly').
+        description (str, optional): An optional description of the habit. Defaults to None.
+        weekday (Optional[int], optional): The weekday for weekly habits (0=Monday, 6=Sunday). Defaults to None.
+    """
     if period_type == 'daily':
         habit = DailyHabit(name=name, description=description)                      # create a daily habit
     elif period_type == 'weekly':
@@ -143,7 +152,13 @@ def add_habit(name : str, start_date : date, period_type : str, description : st
 )
 @ensure_up_to_date
 def list_all_habits(habit_type: str = "all"):
-    p = None if habit_type == "all" else habit_type.lower()     # Filter by type"      
+    """
+    Retrieves all habits from the database and displays them in a table.
+
+    Args:
+        habit_type (str, optional): Filter habits by type ('all', 'daily', or 'weekly'). Defaults to "all".
+    """
+    p = None if habit_type == "all" else habit_type.lower()     # Filter by type"
     habits = database.get_all_habits(period=p)
     if not habits:
         console.print("No habits found.")
@@ -174,6 +189,12 @@ def list_all_habits(habit_type: str = "all"):
 )
 @ensure_up_to_date
 def list_all_active_habits(name : str = None):
+    """
+    Retrieves all active habit instances and displays them in a table.
+
+    Args:
+        name (str, optional): An optional name to filter active habits. Defaults to None.
+    """
     instances = database.get_all_active_habits(name=name)  # Get all active habit instances, optionally filtered by name
     # Sort by the date (earliest first)
     instances.sort(key=lambda inst: inst.period_start)
@@ -222,6 +243,13 @@ def list_all_active_habits(name : str = None):
 )
 @ensure_up_to_date
 def complete_task(name: str = None, date : Optional[date] = None):
+    """
+    Marks a habit instance as completed.
+
+    Args:
+        name (str, optional): The name of the habit to complete. Defaults to None.
+        date (Optional[date], optional): The date to complete the task. Defaults to None.
+    """
     if not name:
         console.print("[bold red]Please provide a habit instance ID to complete.[/bold red]")
         return
@@ -248,6 +276,13 @@ def complete_task(name: str = None, date : Optional[date] = None):
 )
 @ensure_up_to_date
 def show_longest_streak(name: str = None):
+    """
+    Shows the longest streak for a habit or the best streak of all habits.
+
+    Args:
+        name (str, optional): The name of the habit to show the longest streak for. 
+                                If not provided, shows the best streak among all habits. Defaults to None.
+    """
     if not name:
         habits      = database.get_all_habits()
         instances   = database.get_all_active_habits()
@@ -277,6 +312,12 @@ def show_longest_streak(name: str = None):
 @cli.command("delete-habit", short_help="🗑️ Deletes a habit from the database.")
 @click.argument("name")
 def delete_habit_cli(name: str):
+    """
+    Deletes a habit from the database.
+
+    Args:
+        name (str): The name of the habit to delete.
+    """
     habit = database.get_habit_by_name(name)
     
     if not habit:

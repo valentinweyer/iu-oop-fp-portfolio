@@ -33,10 +33,18 @@ Base.metadata.create_all(engine)
 SessionLocal = sessionmaker(bind=engine)
 
 
-def save_habit(habit: Habit) -> None:
+def save_habit(habit: Habit) -> str:
     """
     Saves a Habit to the database.
-    Returns the ID of the saved habit.
+
+    Args:
+        habit (Habit): The habit object to save.
+
+    Raises:
+        ValueError: If a habit with the same name already exists.
+
+    Returns:
+        str: The ID of the saved habit.
     """
     with SessionLocal() as session:
         exists = session.execute(
@@ -51,10 +59,15 @@ def save_habit(habit: Habit) -> None:
         return habit.id
         
 
-def save_instance(instance: HabitInstance) -> None:
+def save_instance(instance: HabitInstance) -> str:
     """
     Saves a HabitInstance to the database.
-    Returns the ID of the saved instance.
+
+    Args:
+        instance (HabitInstance): The habit instance object to save.
+
+    Returns:
+        str: The ID of the saved instance.
     """
     with SessionLocal() as session:
         # 1) Look for an existing instance in the *habit_instances* table
@@ -77,9 +90,15 @@ def save_instance(instance: HabitInstance) -> None:
         
 def complete_task(name: str, date : Optional[datetime.date] = None) -> None:
     """
-    Mark a habit instance as completed and create the following instance.
+    Marks a habit instance as completed and creates the next one.
+
+    Args:
+        name (str): The name of the habit to mark as complete.
+        date (Optional[datetime.date], optional): The date of the instance to mark as complete. Defaults to today.
+
+    Raises:
+        ValueError: If the habit or instance is not found, or if the instance is already completed.
     """
-    
     if date is None:
         date = datetime.date.today()
     
@@ -137,12 +156,14 @@ def complete_task(name: str, date : Optional[datetime.date] = None) -> None:
         
 def get_all_habits(period: Optional[str] = "all") -> list[Habit]:
     """
-    Get all habits [optionally filtered by type].
+    Retrieves all habits, optionally filtered by period.
 
-    :param period:
-      - "daily"  → only daily
-      - "weekly" → only weekly
-      - anything else (including None) → all (Default)
+    Args:
+        period (Optional[str], optional): The period to filter by ('daily' or 'weekly'). 
+                                          Defaults to "all".
+
+    Returns:
+        list[Habit]: A list of all habits matching the filter.
     """
     # Normalize to a real string
     period_str = (period or "all").lower()
@@ -159,11 +180,17 @@ def get_all_habits(period: Optional[str] = "all") -> list[Habit]:
     with SessionLocal() as session:
         return session.scalars(stmt).all()
         
-def get_all_active_habits(name : str = None) -> list[Habit]:
+def get_all_active_habits(name : str = None) -> list[HabitInstance]:
     """
-    Get all active habits [optionally by name].
+    Retrieves all active habit instances, optionally filtered by name.
+
+    Args:
+        name (str, optional): The name of the habit to filter by. Defaults to None.
+
+    Returns:
+        list[HabitInstance]: A list of all active habit instances.
     """
-    # Build a query to fetch all HabitInstance rows, eagerly loading each instance’s related Habit 
+    # Build a query to fetch all HabitInstance rows, eagerly loading each instance’s related Habit
     # plus any subclass‐specific columns for WeeklyHabit in a single round‐trip.
     if name is None:
         print("No name provided, fetching all active habits")
@@ -181,9 +208,16 @@ def get_all_active_habits(name : str = None) -> list[Habit]:
 
 
 
-def prev_period_start(habit, date: date) -> date:
+def prev_period_start(habit: Habit, date: date) -> date:
     """
-    Return the start of the period immediately before date.
+    Calculates the start of the previous period for a given habit and date.
+
+    Args:
+        habit (Habit): The habit to calculate the previous period for.
+        date (date): The date to calculate the previous period from.
+
+    Returns:
+        date: The start date of the previous period.
     """
     if isinstance(habit, DailyHabit):
         return date - datetime.timedelta(days=1)
@@ -191,9 +225,16 @@ def prev_period_start(habit, date: date) -> date:
     return date - datetime.timedelta(days=7)
 
 
-def current_streak_for_habit(habit: DailyHabit|WeeklyHabit, today: Optional[date] = None) -> int:
+def current_streak_for_habit(habit: Habit, today: Optional[date] = None) -> int:
     """
-    Return the current streak for a habit.
+    Calculates the current streak for a given habit.
+
+    Args:
+        habit (Habit): The habit to calculate the streak for.
+        today (Optional[date], optional): The date to calculate the streak up to. Defaults to today.
+
+    Returns:
+        int: The current streak count.
     """
     if today is None:
         today = date.today()
@@ -237,7 +278,13 @@ def current_streak_for_habit(habit: DailyHabit|WeeklyHabit, today: Optional[date
 
 def get_habit_by_name(name: str) -> Optional[Habit]:
     """
-    Get a habit by its name.
+    Retrieves a habit by its name.
+
+    Args:
+        name (str): The name of the habit to retrieve.
+
+    Returns:
+        Optional[Habit]: The habit object if found, otherwise None.
     """
     with SessionLocal() as session:
         stmt = select(Habit).where(Habit.name == name)
@@ -284,10 +331,16 @@ def backfill_instances():
                 session.commit()
                 last = inst
                 
-def longest_streak_all(habits: list[Habit], all_instances: list[HabitInstance]) -> dict[str,int]:
+def longest_streak_all(habits: list[Habit], all_instances: list[HabitInstance]) -> dict:
     """
-    Compute the longest streak of each habit, then return the overall best.
-    Returns a dict mapping habit.name → its longest streak.
+    Computes the longest streak for each habit and finds the overall maximum.
+
+    Args:
+        habits (list[Habit]): A list of all habits.
+        all_instances (list[HabitInstance]): A list of all habit instances.
+
+    Returns:
+        dict: A dictionary containing the streaks per habit and the maximum overall streak.
     """
     
     def streak_for(habit):
@@ -313,7 +366,10 @@ def longest_streak_all(habits: list[Habit], all_instances: list[HabitInstance]) 
 
 def delete_habit_by_id(habit_id: str) -> None:
     """
-    Delete the Habit with the given id (and cascade‐delete its instances).
+    Deletes a habit and its instances from the database.
+
+    Args:
+        habit_id (str): The ID of the habit to delete.
     """
     with SessionLocal() as session:
         session.execute(

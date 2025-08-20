@@ -177,3 +177,7 @@ This will discover and run all the tests in the `Source/test_project.py` file.
 
 - Improvement and refinement of concept and design, implementation and documentation.
 - Folder "Finalization Phase" includes all relevant information and files related to the phase.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

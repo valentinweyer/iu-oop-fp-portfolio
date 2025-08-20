@@ -15,12 +15,12 @@ class Habit(Base):
     
     __tablename__ = 'habits'
     
-    id              = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    name            = Column(String, nullable=False)
-    description     = Column(String, nullable=True)
-    date_created    = Column(DateTime, default=datetime.utcnow)
-    type            = Column(String, nullable=False)   # discriminator
-    weekday         = Column(Integer, nullable=True)
+    id              = Column(String, primary_key=True, default=lambda: str(uuid4()))  # Unique identifier for the habit
+    name            = Column(String, nullable=False)                                  # Name of the habit
+    description     = Column(String, nullable=True)                                   # Optional description
+    date_created    = Column(DateTime, default=datetime.utcnow)                       # Timestamp of when the habit was created
+    type            = Column(String, nullable=False)                                  # Discriminator for single-table inheritance (daily/weekly)
+    weekday         = Column(Integer, nullable=True)                                  # For weekly habits, the day of the week (0=Monday, 6=Sunday)
 
     
     __mapper_args__ = {
@@ -32,10 +32,17 @@ class Habit(Base):
     
     
     def __init__(self, name: str, description: Optional[str]):
+        """
+        Initializes a new Habit.
+
+        Args:
+            name (str): The name of the habit.
+            description (Optional[str]): An optional description of the habit.
+        """
         self.id = str(uuid4())
         self.name = name
         self.description = description
-        self.date_created = datetime.now()  
+        self.date_created = datetime.now()
         
     def next_period_start(self, after: date) -> date:
         """
@@ -60,6 +67,13 @@ class DailyHabit(Habit):
     }
     
     def __init__(self, name: str, description: Optional[str]):
+        """
+        Initializes a new DailyHabit.
+
+        Args:
+            name (str): The name of the habit.
+            description (Optional[str]): An optional description of the habit.
+        """
         super().__init__(name, description)
         
     def next_period_start(self, after: date) -> date:
@@ -87,6 +101,14 @@ class WeeklyHabit(Habit):
     }
     
     def __init__(self, name: str, description: Optional[str], weekday: Optional[int] = None):
+        """
+        Initializes a new WeeklyHabit.
+
+        Args:
+            name (str): The name of the habit.
+            description (Optional[str]): An optional description of the habit.
+            weekday (Optional[int]): The day of the week for the habit (0=Monday, 6=Sunday).
+        """
         super().__init__(name, description)
         self.weekday = weekday
         
@@ -131,16 +153,23 @@ class HabitInstance(Base):
       UniqueConstraint("habit_id", "period_start", name="uix_habit_period"),
     )
 
-    id           = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    habit_id     = Column(String, ForeignKey("habits.id"), nullable=False)
-    period_start = Column(Date, nullable=False)
-    due_date     = Column(Date, nullable=True)  # Optional due date for the habit
-    completed_at = Column(DateTime, nullable=True)
+    id           = Column(String, primary_key=True, default=lambda: str(uuid4()))   # Unique identifier for the habit instance
+    habit_id     = Column(String, ForeignKey("habits.id"), nullable=False)          # Foreign key to the habits table
+    period_start = Column(Date, nullable=False)                                     # The start date of the period for this instance
+    due_date     = Column(Date, nullable=True)                                      # Optional due date for the habit
+    completed_at = Column(DateTime, nullable=True)                                  # Timestamp of when the instance was completed
     
     habit = relationship("Habit", back_populates="instances")
  
     
     def __init__(self, habit: Habit, period_start: date):
+        """
+        Initializes a new HabitInstance.
+
+        Args:
+            habit (Habit): The habit this instance belongs to.
+            period_start (date): The start date of the period for this instance.
+        """
         self.id = str(uuid4())
         self.habit_id = str(habit.id)
         self.period_start = period_start
@@ -175,10 +204,4 @@ class HabitInstance(Base):
             "habit_id": str(self.habit_id),
             "period_start": self.period_start.isoformat(),
             "completed_at": self.completed_at.isoformat() if self.completed_at else None
-        }        
-    
- 
-
-
-
-
+        }
