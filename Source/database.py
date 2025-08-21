@@ -26,7 +26,6 @@ engine = create_engine(
     f"sqlite:///{DB_PATH}",
     echo=False,
 )
-#print("🔍 Using SQLite file:", engine.url)
 
 Base.metadata.create_all(engine)
 
@@ -193,10 +192,8 @@ def get_all_active_habits(name : str = None) -> list[HabitInstance]:
     # Build a query to fetch all HabitInstance rows, eagerly loading each instance’s related Habit
     # plus any subclass‐specific columns for WeeklyHabit in a single round‐trip.
     if name is None:
-        print("No name provided, fetching all active habits")
         stmt = select(HabitInstance).options(selectinload(HabitInstance.habit), selectin_polymorphic(Habit, [WeeklyHabit]))
     else:
-        print(f"Fetching all active habits with name={name!r}")
         stmt = select(HabitInstance).options(selectinload(HabitInstance.habit), selectin_polymorphic(Habit, [WeeklyHabit])).where(
             HabitInstance.habit_id == get_habit_by_name(name).id
         )
