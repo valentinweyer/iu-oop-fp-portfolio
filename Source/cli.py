@@ -125,19 +125,40 @@ def add_habit(name : str, start_date : date, period_type : str, description : st
         description (str, optional): An optional description of the habit. Defaults to None.
         weekday (Optional[int], optional): The weekday for weekly habits (0=Monday, 6=Sunday). Defaults to None.
     """
-    if period_type == 'daily':
-        habit = DailyHabit(name=name, description=description)                      # create a daily habit
-    elif period_type == 'weekly':
-        habit = WeeklyHabit(name=name, description=description, weekday=weekday)    # create a weekly habit with optional weekday
-    
-    database.save_habit(habit)                                     # save the habit to the database
-    
-    if weekday is not None and period_type == "weekly":
-        start_date = habit.first_period_start(after=start_date)                     # calculate the first period start for weekly habits    
+    try:
+        if period_type == 'daily':
+            habit = DailyHabit(name=name, description=description)
+        elif period_type == 'weekly':
+            if weekday is None:
+                console.print("[bold red]Error: A weekday must be provided for weekly habits.[/bold red]")
+                return
+            
+            weekday_int = int(weekday)
+            if not 0 <= weekday_int <= 6:
+                console.print("[bold red]Error: Weekday must be an integer between 0 (Monday) and 6 (Sunday).[/bold red]")
+                return
+            habit = WeeklyHabit(name=name, description=description, weekday=weekday_int)
+
+        database.save_habit(habit)
         
-    habit_instance = HabitInstance(habit=habit, period_start=start_date)            # create a habit instance with the habit and the start date
-    database.save_instance(habit_instance)                         # save the habit instance to the database
-    console.print(f'Habit "[bold green]{name}[/bold green]" added successfully!')
+        start_date_obj = start_date.date()
+
+        if period_type == "weekly":
+            start_date_obj = habit.first_period_start(after=start_date_obj)
+            
+        habit_instance = HabitInstance(habit=habit, period_start=start_date_obj)
+        database.save_instance(habit_instance)
+        
+        console.print(f'Habit "[bold green]{name}[/bold green]" added successfully!')
+
+    except ValueError as e:
+        console.print(f"[bold red]Error: {e}[/bold red]")
+    except TypeError:
+        console.print("[bold red]Error: Weekday must be an integer.[/bold red]")
+    except sqlalchemy.exc.IntegrityError:
+        console.print(f"[bold red]Error: A habit with the name '{name}' already exists.[/bold red]")
+    except Exception as e:
+        console.print(f"[bold red]An unexpected error occurred: {e}[/bold red]")
     
     
     
