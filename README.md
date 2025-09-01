@@ -19,11 +19,11 @@ This project is a **Habit Tracker** written in Python as part of a portfolio pro
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/your-username/habit-tracker.git
+    git clone https://github.com/valentinweyer/iu-oop-fp-portfolio
     ```
 2.  Navigate to the project directory:
     ```bash
-    cd habit-tracker
+    cd iu-oop-fp-portfolio
     ```
 3.  It is recommended to use a virtual environment to manage dependencies. You can use `venv` or `conda`.
 
