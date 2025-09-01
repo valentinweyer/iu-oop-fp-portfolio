@@ -12,7 +12,7 @@ This project is a **Habit Tracker** written in Python as part of a portfolio pro
 
 ### Prerequisites
 
-- Python 3.x
+- Python 3.12 or later
 - pip
 
 ### Installation
